@@ -1,0 +1,15 @@
+header {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+}
+.HeaderSection {
+    max-width: 1440px;
+    width: 100%;
+    min-width: 1200px;
+    height: 100px;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
