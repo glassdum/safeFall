@@ -3,154 +3,175 @@ import { useEffect, useRef, useState } from 'react';
 function RaspberryPiWebRTC() {
   const remoteVideoRef = useRef(null);
   const [status, setStatus] = useState('연결 대기중...');
+  const [pc, setPc] = useState(null);
   
-  // 라즈베리파이 IP 주소 설정
-  const RASPBERRY_PI_IP = '192.168.1.100'; // 실제 라즈베리파이 IP로 변경하세요
+  const RASPBERRY_PI_IP = '192.168.1.100'; // 라즈베리파이 IP 주소
 
   useEffect(() => {
-    let pc = null;
-    let ws = null;
+    let peerConnection = null;
 
-    const connectToRaspberryPi = async () => {
+    const connectToStream = async () => {
       try {
+        setStatus('연결 시도중...');
+
         // RTCPeerConnection 생성
-        pc = new RTCPeerConnection({
+        peerConnection = new RTCPeerConnection({
           iceServers: [
-            // 로컬 네트워크만 사용한다면 비워도 됨
-            // 외부 접속이 필요하면 그대로 사용
             { urls: 'stun:stun.l.google.com:19302' }
           ]
         });
 
-        // 연결 상태 모니터링
-        pc.onconnectionstatechange = () => {
-          console.log('연결 상태:', pc.connectionState);
-          setStatus(`연결 상태: ${pc.connectionState}`);
-        };
-
-        // ICE 연결 상태 모니터링
-        pc.oniceconnectionstatechange = () => {
-          console.log('ICE 상태:', pc.iceConnectionState);
-        };
-
         // 원격 스트림 수신
-        pc.ontrack = (event) => {
-          console.log('스트림 수신됨:', event.streams[0]);
-          if (remoteVideoRef.current) {
+        peerConnection.ontrack = (event) => {
+          console.log('스트림 수신:', event.streams[0]);
+          if (remoteVideoRef.current && event.streams[0]) {
             remoteVideoRef.current.srcObject = event.streams[0];
-            setStatus('스트림 연결됨!');
+            setStatus('스트리밍 중');
           }
         };
 
-        // UV4L WebSocket 연결
-        // UV4L 기본 포트는 8090
-        ws = new WebSocket(`ws://${RASPBERRY_PI_IP}:8090/stream/webrtc`);
+        // 연결 상태 모니터링
+        peerConnection.onconnectionstatechange = () => {
+          console.log('연결 상태:', peerConnection.connectionState);
+          switch(peerConnection.connectionState) {
+            case 'connected':
+              setStatus('연결됨');
+              break;
+            case 'disconnected':
+              setStatus('연결 끊김');
+              break;
+            case 'failed':
+              setStatus('연결 실패');
+              reconnect();
+              break;
+          }
+        };
+
+        // Offer 생성 및 전송
+        const offer = await peerConnection.createOffer({
+          offerToReceiveVideo: true,
+          offerToReceiveAudio: false
+        });
+        await peerConnection.setLocalDescription(offer);
+
+        // mediamtx WebRTC 엔드포인트로 offer 전송
+        const response = await fetch(`http://${RASPBERRY_PI_IP}:8889/cam/whep`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/sdp'
+          },
+          body: offer.sdp
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const answerSdp = await response.text();
         
-        ws.onopen = () => {
-          console.log('WebSocket 연결됨');
-          setStatus('WebSocket 연결됨');
-        };
+        // Answer 설정
+        await peerConnection.setRemoteDescription({
+          type: 'answer',
+          sdp: answerSdp
+        });
 
-        ws.onerror = (error) => {
-          console.error('WebSocket 에러:', error);
-          setStatus('연결 실패');
-        };
-
-        ws.onmessage = async (event) => {
-          try {
-            const message = JSON.parse(event.data);
-            console.log('메시지 수신:', message.type);
-            
-            if (message.type === 'offer' || message.offer) {
-              // Offer 수신 및 처리
-              const offer = message.offer || message;
-              await pc.setRemoteDescription(new RTCSessionDescription(offer));
-              
-              // Answer 생성
-              const answer = await pc.createAnswer();
-              await pc.setLocalDescription(answer);
-              
-              // Answer 전송
-              ws.send(JSON.stringify({
-                type: 'answer',
-                answer: answer
-              }));
-              
-              console.log('Answer 전송됨');
-            } else if (message.type === 'ice-candidate' || message.candidate) {
-              // ICE candidate 추가
-              const candidate = message.candidate || message;
-              await pc.addIceCandidate(new RTCIceCandidate(candidate));
-              console.log('ICE candidate 추가됨');
-            }
-          } catch (error) {
-            console.error('메시지 처리 에러:', error);
-          }
-        };
-
-        // ICE candidate 전송
-        pc.onicecandidate = (event) => {
-          if (event.candidate && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-              type: 'ice-candidate',
-              candidate: event.candidate
-            }));
-            console.log('ICE candidate 전송됨');
-          }
-        };
+        setPc(peerConnection);
+        setStatus('연결 완료');
 
       } catch (error) {
-        console.error('연결 실패:', error);
-        setStatus('연결 실패: ' + error.message);
+        console.error('연결 오류:', error);
+        setStatus(`오류: ${error.message}`);
       }
     };
 
-    connectToRaspberryPi();
+    // 재연결 함수
+    const reconnect = () => {
+      setTimeout(() => {
+        console.log('재연결 시도...');
+        connectToStream();
+      }, 3000);
+    };
+
+    connectToStream();
 
     // Cleanup
     return () => {
-      if (pc) {
-        pc.close();
-        console.log('PeerConnection 종료');
-      }
-      if (ws) {
-        ws.close();
-        console.log('WebSocket 종료');
+      if (peerConnection) {
+        peerConnection.close();
       }
     };
   }, []);
 
+  // 수동 재연결 버튼
+  const handleReconnect = () => {
+    if (pc) {
+      pc.close();
+    }
+    window.location.reload();
+  };
+
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>🎥 라즈베리파이 카메라 스트림</h2>
+    <div style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      <h2>📹 Libcamera WebRTC 스트림</h2>
       
-      <div style={{ marginBottom: '10px' }}>
+      <div style={{ marginBottom: '15px' }}>
         <span style={{
-          padding: '5px 10px',
-          backgroundColor: status.includes('연결됨') ? '#4CAF50' : '#FFC107',
+          padding: '8px 15px',
+          backgroundColor: status === '스트리밍 중' ? '#4CAF50' : 
+                          status.includes('오류') ? '#f44336' : '#FFC107',
           color: 'white',
-          borderRadius: '5px'
+          borderRadius: '20px',
+          fontSize: '14px'
         }}>
-          {status}
+          ● {status}
         </span>
       </div>
 
-      <video
-        ref={remoteVideoRef}
-        autoPlay
-        playsInline
-        muted
-        style={{ 
-          width: '100%', 
-          maxWidth: '800px',
-          backgroundColor: '#000',
-          border: '2px solid #333',
-          borderRadius: '8px'
-        }}
-      />
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          muted
+          style={{ 
+            width: '100%', 
+            maxWidth: '800px',
+            backgroundColor: '#000',
+            border: '2px solid #333',
+            borderRadius: '8px',
+            display: 'block'
+          }}
+        />
+        
+        {status === '연결 실패' && (
+          <div style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            textAlign: 'center'
+          }}>
+            <button
+              onClick={handleReconnect}
+              style={{
+                padding: '10px 20px',
+                fontSize: '16px',
+                backgroundColor: '#2196F3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              재연결
+            </button>
+          </div>
+        )}
+      </div>
 
-      <div style={{ marginTop: '10px', fontSize: '14px', color: '#666' }}>
-        라즈베리파이 IP: {RASPBERRY_PI_IP}
+      <div style={{ marginTop: '15px', fontSize: '13px', color: '#666' }}>
+        <div>라즈베리파이: {RASPBERRY_PI_IP}:8889</div>
+        <div>프로토콜: WebRTC (WHEP)</div>
       </div>
     </div>
   );

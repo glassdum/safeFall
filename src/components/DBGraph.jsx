@@ -1,12 +1,17 @@
 import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+import WindowSize from "../hooks/windowSize";
+
+import "./DBGraph.css"
+
 import Dum003 from "../util/Dum003.json"
 
 const DBGraph = () => {
+  const { width, height } = WindowSize();
   const dummyData = Dum003;
 
-  // 월별 데이터 그룹화 및 집계
+  // 그래프용 데이터 (기존 방식 유지)
   const chartData = useMemo(() => {
     // 실제 데이터를 일별로 집계
     const dailyData = {};
@@ -56,6 +61,37 @@ const DBGraph = () => {
     return chartPoints.sort((a, b) => a.xPosition - b.xPosition);
   }, [dummyData]);
 
+  // 테이블용 월별 집계 데이터
+  const tableData = useMemo(() => {
+    // 월별 데이터 초기화 (1월~12월)
+    const monthlyData = {};
+    for (let month = 1; month <= 12; month++) {
+      monthlyData[month] = {
+        month: month,
+        date: `${String(month).padStart(2, '0')}월`,
+        total: 0,
+        checked: 0,
+        unchecked: 0
+      };
+    }
+    
+    // 실제 데이터를 월별로 집계
+    dummyData.forEach(item => {
+      const dateObj = new Date(item.createdAt);
+      const month = dateObj.getMonth() + 1; // 1~12
+      
+      monthlyData[month].total += 1;
+      if (item.isChecked) {
+        monthlyData[month].checked += 1;
+      } else {
+        monthlyData[month].unchecked += 1;
+      }
+    });
+
+    // 객체를 배열로 변환하고 월순으로 정렬
+    return Object.values(monthlyData).sort((a, b) => a.month - b.month);
+  }, [dummyData]);
+
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -74,7 +110,7 @@ const DBGraph = () => {
       {/* 차트 */}
       <div className="chart-container">
         <ResponsiveContainer width="100%" height={400}>
-          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+          <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis 
               type="number"
@@ -98,8 +134,10 @@ const DBGraph = () => {
       </div>
 
       {/* 데이터 테이블 */}
-      {/* <div className="data-table-container">
-        <h3>일별 상세 데이터</h3>
+      {
+        width < 1200 ?
+      <div className="data-table-container">
+        <h3>월별 상세 데이터</h3>
         <div className="table-wrapper">
           <table className="data-table">
             <thead>
@@ -111,7 +149,7 @@ const DBGraph = () => {
               </tr>
             </thead>
             <tbody>
-              {chartData.map((row, index) => (
+              {tableData.map((row, index) => (
                 <tr key={index}>
                   <td className="date-cell">{row.date}</td>
                   <td className="count-cell">{row.total}개</td>
@@ -122,7 +160,7 @@ const DBGraph = () => {
             </tbody>
           </table>
         </div>
-      </div> */}
+      </div> : <div></div>}
     </div>
   );
 };

@@ -1,0 +1,20 @@
+.SignInSignUpContactUsBtn {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 16px;
+}
+.SignInSignUpContactUsBtn button {
+    display: block;
+    width: 122px;
+    height: 44px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: none;
+    border: 2px solid #69BDF9;
+    border-radius: 8px;
+}
+.SignInSignUpContactUsBtn p {
+    font-size: 24px;
+}
