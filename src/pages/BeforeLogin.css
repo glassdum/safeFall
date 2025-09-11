@@ -18,9 +18,15 @@
     display: block;
     width: 160px;
     height: 44px;
-    background: none;
+    background: #fff;
     border: 2px solid #69BDF9;
     border-radius: 8px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+.BeforeSignInSignUpBox button:hover {
+    color: #fff;
+    background: #69BDF9;
 }
 
 .SimpleInfo h3 {
@@ -40,7 +46,23 @@
 .SimpleInfo {
     position: relative;
 }
+.OurInfo001 {
+  background: linear-gradient(135deg, #69bdf900 0%, #69bdf956 75%, #69BDF9 100%);
+}
+.OurInfo002 {
+  background: linear-gradient(135deg, #69BDF9 0%, #69bdf956 25%, #69bdf900 75%);
+}
 
+.OurInfo003 {
+  background: linear-gradient(135deg, #69bdf900 0%, #69bdf956 75%, #69BDF9 100%);
+}
+.OurInfo004 {
+  background: linear-gradient(135deg, #69BDF9 0%, #69bdf956 25%, #69bdf900 75%);
+}
+
+.OurInfo005 {
+  background: linear-gradient(135deg, #69bdf900 0%, #69bdf956 75%, #69BDF9 100%);
+}
 /* 무한 슬라이더 스타일 */
 .infinite-slider-wrapper {
     width: 100%;
@@ -58,6 +80,7 @@
     height: auto;
     margin-right: 10px;
     flex-shrink: 0;
+    box-shadow: 2px 1px 5px rgba(0, 0, 0, 0.5);
 }
 
 /* 무한 슬라이드 애니메이션 */

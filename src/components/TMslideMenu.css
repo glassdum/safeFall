@@ -1,0 +1,45 @@
+.TMmenuBox {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 200;
+}
+.TMmenuBG {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    z-index: 201;
+    background: rgba(0, 0, 0, 0.85);
+}
+menu{
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    right: 0;
+    top: 0;
+    max-width: 500px;
+    width: 70%;
+    height: 100%;
+    background: #fff;
+    z-index: 202;
+}
+.TMmenuLogobox {
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid red;
+}
+menu > ul {
+    width: 100%;
+    height: calc(100% - 140px);
+    background: #ccc;
+}
+.TMmenuLoginBox {
+    height: 60px;
+    border: 1px solid red;
+}
