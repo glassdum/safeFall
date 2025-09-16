@@ -22,13 +22,6 @@
   color: #1565c0;
   font-size: 2.5rem;
   font-weight: 700;
-  margin-bottom: 10px;
-}
-
-.login-container p {
-  text-align: center;
-  color: #666;
-  font-size: 1.1rem;
   margin-bottom: 30px;
 }
 
@@ -81,47 +74,61 @@
 }
 
 /* 로그인 버튼 */
-.login-button {
+.TMmenuLoginBtnBox {
   width: 100%;
+  margin-top: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.login-button, .SignUpBtn {
+  width: 45%;
+  height: 40px;
+  display: block;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background: #69BDF9;
   color: white;
   border: none;
   padding: 14px 20px;
   border-radius: 8px;
   font-size: 1.1rem;
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: all 0.3s ease;
 }
 
-.login-button:hover:not(:disabled) {
+.login-button:hover:not(:disabled), .SignUpBtn:hover:not(:disabled) {
   background: #5ba3e0;
 }
 
-.login-button:disabled {
+.login-button:disabled, .SignUpBtn:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
 
 /* 데모 섹션 */
-.demo-section {
+.autoLoginBox {
   padding: 20px 0;
   border-top: 1px solid #e0e0e0;
   border-bottom: 1px solid #e0e0e0;
   margin-bottom: 20px;
-  text-align: center;
 }
 
-.demo-text {
+.autoLogin-text {
   color: #666;
-  font-size: 0.9rem;
-  margin-bottom: 10px;
+  text-align: center;
+  margin-bottom: 12px;
+  font-size: 1.1rem;
 }
-
-.demo-button {
+.autoLoginBox > button {
+  display: block;
+  margin: 8px auto;
+  width: 200px;
   background: none;
   border: 2px solid #ff9800;
-  color: #ff9800;
+  color: #222;
   padding: 10px 16px;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -129,7 +136,7 @@
   transition: all 0.3s ease;
 }
 
-.demo-button:hover {
+.autoLoginBox > button:hover {
   background: #ff9800;
   color: white;
 }
@@ -154,9 +161,11 @@
   background: #69BDF9;
   color: white;
 }
-
+.autoLogin {
+  border: 1px solid red;
+}
 /* 모바일 반응형 */
-@media (max-width: 768px) {
+@media (max-width: 1200px) {
   .login-page {
     padding: 20px 10px;
   }
@@ -173,7 +182,7 @@
     padding: 10px 14px;
   }
   
-  .login-button {
+  .login-button, .SignUpBtn {
     padding: 12px 18px;
     font-size: 1rem;
   }

@@ -1,0 +1,3 @@
+.env 주소 변경
+app.jsx, RaspberryPiWebRTC.jsx, DBdata.jsx, TMslideMenu.jsx, LoginDesk.jsx
+=> 주석 부분의 코드로 수정 필요

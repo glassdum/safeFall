@@ -1,0 +1,93 @@
+.CheckHistorySection {
+    width: 100%;
+}
+.historyLost li {
+    width: 100%;
+    display: flex;
+    gap: 16px;
+    padding: 12px;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+.historyinfo {
+    width: calc(100% - 240px);
+    height: 135px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8pxpx;
+}
+.historyDetailBox {
+    display: flex;
+    justify-content: space-between;
+}
+.historyCheckbox {
+    display: flex;
+    gap: 16px;
+}
+.historyThumnail {
+    width: 240px;
+    height: 135px;
+    background: rgba(34, 34, 34, 0.4);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 24px;
+}
+.historyFilename {
+    font-size: 20px;
+}
+    .historyLost li:hover {
+        box-shadow: 5px 5px 5px #222;
+    }
+@media screen and (min-width: 1200px) {
+    .historyListBox {
+        max-width: 1440px;
+        width: 100%;
+        min-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    .historyLost {
+        width: 100%;
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+    }
+    .historyListBox li {
+        width: calc(50% - 16px);
+    }
+}
+@media screen and (max-width: 1200px) and (min-width:320px) {
+    .historyListBox {
+        width: 100%;
+        padding: 24px;
+    }
+    .historyLost li {
+        width: 100%;
+        border-radius: 24px;
+        margin-bottom: 24px;
+        overflow: hidden;
+    }
+    .historyDetailBox {
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .historyFilename {
+        font-size: 1.1rem;
+    }
+    .historyDetailBox > p {
+        font-size: 0.8rem;
+    }
+    .historyCheckbox {
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        padding-right: 12px;
+    }
+    .historyCheckbox > p {
+        font-size: 0.8rem;
+    }
+}

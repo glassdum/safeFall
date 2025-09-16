@@ -3,10 +3,10 @@ import { useState, useEffect, createContext, useContext } from "react";
 import BeforeLogin from "./pages/BeforeLogin"
 import AfterLogin from "./pages/AfterLogin";
 import LoginPage from "./pages/LoginPage";
+import CheckHistory from "./pages/CheckHistory";
+import CheckVideo from "./pages/CheckVideo";
 
 import WindowSize from "./hooks/windowSize";
-
-import TMslideMenu from "./components/TMslideMenu";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -107,7 +107,8 @@ function AppContent() {
   return (
     <>
       <Header />
-      {renderPage()}
+      {/* {renderPage()} */}
+      <CheckHistory />
       <Footer />
     </>
   );
@@ -118,7 +119,6 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
-      {width > 1200 ? <div className="unkown"></div> : <TMslideMenu />}
     </AuthProvider>
   );
 }

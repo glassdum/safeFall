@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 
 import DBGraph from "../components/DBGraph";
-import RaspberryPiWebRTC from "../hooks/RaspberryPiWebRTC";
+import FlaskVideoStream from "../hooks/RaspberryPiWebRTC";
 import WindowSize from "../hooks/windowSize";
 
 import "./AfterLogin.css";
 
 import VideoBtnSmall from "../components/SVG-VideoBtnSmall";
 
-import Dum001 from "../hooks/dum001";
+// import Dum001 from "../hooks/dum001";
 import Dum003 from "../util/Dum003.json";
 
 function AfterLogin() {
@@ -30,9 +30,12 @@ function AfterLogin() {
       {/* 더미데이터 */}
       {/* 사용 완료시 삭제 */}
       {/* 더미데이터의 css는 App.css에 위치 */}
-      <div className="dumybox001">
         {/* <RaspberryPiWebRTC /> */}
+      {/* <div className="dumybox001">
         <Dum001 />
+      </div> */}
+      <div className="realtimevideoBox">
+        <FlaskVideoStream />
       </div>
       <div className="listAndGraphWindowDesktop">
         <div className="listWindowDesktop">
