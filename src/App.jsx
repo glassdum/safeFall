@@ -119,10 +119,7 @@ function App() {
   return (
     <AuthProvider>
       <AppContent />
-<<<<<<< HEAD
-=======
       {/* {width > 1200 ? <div className="unkown"></div> : <TMslideMenu />} */}
->>>>>>> 29e69b1c6a17c9c4c9c92a2e2e0bcef2ec461747
     </AuthProvider>
   );
 }
