@@ -1,4 +1,5 @@
 import { useState, useEffect, createContext, useContext } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 
 import BeforeLogin from "./pages/BeforeLogin"
 import AfterLogin from "./pages/AfterLogin";
@@ -7,6 +8,7 @@ import CheckHistory from "./pages/CheckHistory";
 import CheckVideo from "./pages/CheckVideo";
 
 import WindowSize from "./hooks/windowSize";
+import { DataProvider, useData } from "./hooks/DataContext";
 
 import Header from "./components/Header";
 import Footer from "./components/Footer";
@@ -20,7 +22,6 @@ const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [currentPage, setCurrentPage] = useState('home');
 
   // 컴포넌트 마운트 시 로컬스토리지에서 로그인 상태 확인
   useEffect(() => {
@@ -37,7 +38,6 @@ export const AuthProvider = ({ children }) => {
   const login = (userData) => {
     setIsLoggedIn(true);
     setCurrentUser(userData);
-    setCurrentPage('home');
     
     // 로컬스토리지에 저장
     localStorage.setItem('isLoggedIn', 'true');
@@ -48,31 +48,18 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
-    setCurrentPage('home');
     
     // 로컬스토리지에서 제거
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('currentUser');
   };
 
-  // 페이지 이동 함수
-  const navigateToLogin = () => {
-    setCurrentPage('login');
-  };
-
-  const navigateToHome = () => {
-    setCurrentPage('home');
-  };
-
   return (
     <AuthContext.Provider value={{
       isLoggedIn,
       currentUser,
-      currentPage,
       login,
-      logout,
-      navigateToLogin,
-      navigateToHome
+      logout
     }}>
       {children}
     </AuthContext.Provider>
@@ -88,39 +75,165 @@ export const useAuth = () => {
   return context;
 };
 
-// 메인 앱 컴포넌트
-function AppContent() {
-  const { isLoggedIn, currentPage } = useAuth();
+// 보호된 라우트 컴포넌트
+const ProtectedRoute = ({ children }) => {
+  const { isLoggedIn } = useAuth();
+  
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  return children;
+};
 
-  const renderPage = () => {
-    if (currentPage === 'login') {
-      return <LoginPage />;
-    }
+// 공개 라우트 컴포넌트 (로그인 시 리다이렉트)
+const PublicRoute = ({ children }) => {
+  const { isLoggedIn } = useAuth();
+  
+  if (isLoggedIn) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  return children;
+};
+
+// 페이지 래퍼 컴포넌트
+const PageWrapper = ({ children }) => {
+  const {
+    // 실시간 영상 관련
+    LiveVideoComponent,
+    liveVideoConfig,
+    getLiveVideoComponent,
+    updateLiveVideoConfig,
+    updateStreamStatus,
     
-    if (isLoggedIn) {
-      return <AfterLogin />;
-    } else {
-      return <BeforeLogin />;
-    }
-  };
+    // 사고 영상 관련
+    incidentVideos,
+    updateVideoCheckStatus,
+    addNewIncidentVideo,
+    deleteIncidentVideo,
+    getFilteredVideos,
+    
+    // 로그인 관련
+    userCredentials,
+    validateCredentials,
+    getUserByCredentials,
+    
+    // 필터링 관련
+    videoFilters,
+    updateFilters,
+    resetFilters,
+    
+    // 통계 관련
+    getVideoStats,
+    getRecentVideos
+  } = useData();
 
   return (
     <>
       <Header />
-      {/* {renderPage()} */}
-      <CheckHistory />
+      <Routes>
+        {/* 공개 라우트 */}
+        <Route 
+          path="/" 
+          element={
+            <PublicRoute>
+              <BeforeLogin />
+            </PublicRoute>
+          } 
+        />
+        <Route 
+          path="/login" 
+          element={
+            <PublicRoute>
+              <LoginPage 
+                userCredentials={userCredentials}
+                validateCredentials={validateCredentials}
+                getUserByCredentials={getUserByCredentials}
+              />
+            </PublicRoute>
+          } 
+        />
+
+        {/* 보호된 라우트 */}
+        <Route 
+          path="/dashboard" 
+          element={
+            <ProtectedRoute>
+              <AfterLogin 
+                incidentVideos={incidentVideos}
+                LiveVideoComponent={LiveVideoComponent}
+                liveVideoConfig={liveVideoConfig}
+                getRecentVideos={(count = 6) => {
+                  return incidentVideos
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, count);
+                }}
+              />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/history" 
+          element={
+            <ProtectedRoute>
+              <CheckHistory 
+                incidentVideos={incidentVideos}
+                updateVideoCheckStatus={updateVideoCheckStatus}
+                deleteIncidentVideo={deleteIncidentVideo}
+                getFilteredVideos={getFilteredVideos}
+                videoFilters={videoFilters}
+                updateFilters={updateFilters}
+                resetFilters={resetFilters}
+                getVideoStats={getVideoStats}
+              />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/video/:filename" 
+          element={
+            <ProtectedRoute>
+              <CheckVideo 
+                incidentVideos={incidentVideos}
+                updateVideoCheckStatus={updateVideoCheckStatus}
+                LiveVideoComponent={LiveVideoComponent}
+              />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/live" 
+          element={
+            <ProtectedRoute>
+              <CheckVideo 
+                LiveVideoComponent={LiveVideoComponent}
+                liveVideoConfig={liveVideoConfig}
+                updateStreamStatus={updateStreamStatus}
+              />
+            </ProtectedRoute>
+          } 
+        />
+
+        {/* 404 페이지 */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
       <Footer />
     </>
   );
-}
+};
 
 function App() {
   const { width, height } = WindowSize();
+  
   return (
-    <AuthProvider>
-      <AppContent />
-      {/* {width > 1200 ? <div className="unkown"></div> : <TMslideMenu />} */}
-    </AuthProvider>
+    <BrowserRouter>
+      <DataProvider>
+        <AuthProvider>
+          <PageWrapper />
+        </AuthProvider>
+      </DataProvider>
+    </BrowserRouter>
   );
 }
 

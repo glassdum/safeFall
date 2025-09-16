@@ -1,96 +1,15 @@
-import { useState, useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 import WindowSize from "../hooks/windowSize";
+import DBdata from "../hooks/DBdata"; // DBdata 함수 import
 
 import "./DBGraph.css"
 
-import Dum003 from "../util/Dum003.json"
-
-const DBGraph = () => {
+const DBGraph = ({ incidentVideos }) => {
   const { width, height } = WindowSize();
-  const dummyData = Dum003;
-
-  // 그래프용 데이터 (기존 방식 유지)
-  const chartData = useMemo(() => {
-    // 실제 데이터를 일별로 집계
-    const dailyData = {};
-    
-    dummyData.forEach(item => {
-      const date = item.createdAt;
-      if (!dailyData[date]) {
-        dailyData[date] = {
-          date: date,
-          total: 0,
-          checked: 0,
-          unchecked: 0
-        };
-      }
-      
-      dailyData[date].total += 1;
-      if (item.isChecked) {
-        dailyData[date].checked += 1;
-      } else {
-        dailyData[date].unchecked += 1;
-      }
-    });
-
-    // 일별 데이터를 월 좌표계로 변환
-    const chartPoints = Object.values(dailyData).map(item => {
-      const dateObj = new Date(item.date);
-      const month = dateObj.getMonth() + 1; // 1~12
-      const day = dateObj.getDate();
-      const daysInMonth = new Date(2024, month, 0).getDate(); // 해당 월의 총 일수
-      
-      // 월 내에서의 위치 계산 (월 시작을 0, 월 끝을 1로 하는 비율)
-      const positionInMonth = (day - 1) / (daysInMonth - 1);
-      
-      // 실제 X축 좌표 (월 번호 + 월 내 위치)
-      const xPosition = month + positionInMonth - 1; // 1월을 1, 2월을 2로 시작
-      
-      return {
-        date: `${String(month).padStart(2, '0')}월`,
-        xPosition: xPosition,
-        originalDate: item.date,
-        total: item.total,
-        checked: item.checked,
-        unchecked: item.unchecked
-      };
-    });
-
-    return chartPoints.sort((a, b) => a.xPosition - b.xPosition);
-  }, [dummyData]);
-
-  // 테이블용 월별 집계 데이터
-  const tableData = useMemo(() => {
-    // 월별 데이터 초기화 (1월~12월)
-    const monthlyData = {};
-    for (let month = 1; month <= 12; month++) {
-      monthlyData[month] = {
-        month: month,
-        date: `${String(month).padStart(2, '0')}월`,
-        total: 0,
-        checked: 0,
-        unchecked: 0
-      };
-    }
-    
-    // 실제 데이터를 월별로 집계
-    dummyData.forEach(item => {
-      const dateObj = new Date(item.createdAt);
-      const month = dateObj.getMonth() + 1; // 1~12
-      
-      monthlyData[month].total += 1;
-      if (item.isChecked) {
-        monthlyData[month].checked += 1;
-      } else {
-        monthlyData[month].unchecked += 1;
-      }
-    });
-
-    // 객체를 배열로 변환하고 월순으로 정렬
-    return Object.values(monthlyData).sort((a, b) => a.month - b.month);
-  }, [dummyData]);
+  
+  // DBdata 함수에 props로 받은 데이터 전달
+  const { chartData, tableData, rawData } = DBdata(incidentVideos);
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -104,6 +23,19 @@ const DBGraph = () => {
     }
     return null;
   };
+
+  // 데이터가 없을 때 로딩 상태 표시
+  if (!rawData || rawData.length === 0) {
+    return (
+      <div className="video-count-chart">
+        <div className="chart-container">
+          <div className="loading-state">
+            <p>데이터를 불러오는 중...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="video-count-chart">
@@ -133,34 +65,36 @@ const DBGraph = () => {
         </ResponsiveContainer>
       </div>
 
-      {/* 데이터 테이블 */}
-      {
-        width < 1200 ?
-      <div className="data-table-container">
-        <h3>월별 상세 데이터</h3>
-        <div className="table-wrapper">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>날짜</th>
-                <th>전체</th>
-                <th>확인됨</th>
-                <th>미확인</th>
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.map((row, index) => (
-                <tr key={index}>
-                  <td className="date-cell">{row.date}</td>
-                  <td className="count-cell">{row.total}개</td>
-                  <td className="count-cell checked">{row.checked}개</td>
-                  <td className="count-cell unchecked">{row.unchecked}개</td>
+      {/* 데이터 테이블 - 모바일에서만 표시 */}
+      {width < 1200 ? (
+        <div className="data-table-container">
+          <h3>월별 상세 데이터</h3>
+          <div className="table-wrapper">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>날짜</th>
+                  <th>전체</th>
+                  <th>확인됨</th>
+                  <th>미확인</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {tableData.map((row, index) => (
+                  <tr key={`${row.month}-${index}`}>
+                    <td className="date-cell">{row.date}</td>
+                    <td className="count-cell">{row.total}개</td>
+                    <td className="count-cell checked">{row.checked}개</td>
+                    <td className="count-cell unchecked">{row.unchecked}개</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div> : <div></div>}
+      ) : (
+        <div></div>
+      )}
     </div>
   );
 };

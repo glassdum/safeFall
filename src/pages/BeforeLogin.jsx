@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; // React Router 추가
 
 import WindowSize from "../hooks/windowSize";
 
@@ -46,6 +47,18 @@ function InfiniteSlider({ images, speed = 30 }) {
 
 function BeforeLogin() {
   const { width } = WindowSize();
+  const navigate = useNavigate(); // React Router의 useNavigate 사용
+
+  // 로그인 페이지로 이동하는 핸들러
+  const handleGoToLogin = () => {
+    navigate('/login');
+  };
+
+  // SafeFall 시작하기 버튼 핸들러 (향후 회원가입 페이지로 연결 가능)
+  const handleStartSafeFall = () => {
+    // 현재는 로그인 페이지로 이동, 향후 회원가입 페이지로 변경 가능
+    navigate('/login');
+  };
 
   // 각 섹션별 이미지 배열
   const imageGroups = {
@@ -68,9 +81,9 @@ function BeforeLogin() {
             </p>
           </div>
           <div className="BeforeSignInSignUpBox">
-            <button>SafeFall 시작하기</button>
+            <button onClick={handleStartSafeFall}>SafeFall 시작하기</button>
             {width > 1200 ? <p>또는</p> : <div className="unkown"></div>}
-            <button>로그인 바로가기</button>
+            <button onClick={handleGoToLogin}>로그인 바로가기</button>
           </div>
         </div>
         <div className="SimpleInfoImg">
@@ -88,9 +101,9 @@ function BeforeLogin() {
             </p>
           </div>
           <div className="BeforeSignInSignUpBox">
-            <button>SafeFall 시작하기</button>
+            <button onClick={handleStartSafeFall}>SafeFall 시작하기</button>
             {width > 1200 ? <p>또는</p> : <div className="unkown"></div>}
-            <button>로그인 바로가기</button>
+            <button onClick={handleGoToLogin}>로그인 바로가기</button>
           </div>
         </div>
         <div className="SimpleInfoImg">
@@ -107,9 +120,9 @@ function BeforeLogin() {
             </p>
           </div>
           <div className="BeforeSignInSignUpBox">
-            <button>SafeFall 시작하기</button>
+            <button onClick={handleStartSafeFall}>SafeFall 시작하기</button>
             {width > 1200 ? <p>또는</p> : <div className="unkown"></div>}
-            <button>로그인 바로가기</button>
+            <button onClick={handleGoToLogin}>로그인 바로가기</button>
           </div>
         </div>
         <div className="SimpleInfoImg">
@@ -127,9 +140,9 @@ function BeforeLogin() {
             </p>
           </div>
           <div className="BeforeSignInSignUpBox">
-            <button>SafeFall 시작하기</button>
+            <button onClick={handleStartSafeFall}>SafeFall 시작하기</button>
             {width > 1200 ? <p>또는</p> : <div className="unkown"></div>}
-            <button>로그인 바로가기</button>
+            <button onClick={handleGoToLogin}>로그인 바로가기</button>
           </div>
         </div>
         <div className="SimpleInfoImg">
@@ -148,9 +161,9 @@ function BeforeLogin() {
             </p>
           </div>
           <div className="BeforeSignInSignUpBox">
-            <button>SafeFall 시작하기</button>
+            <button onClick={handleStartSafeFall}>SafeFall 시작하기</button>
             {width > 1200 ? <p>또는</p> : <div className="unkown"></div>}
-            <button>로그인 바로가기</button>
+            <button onClick={handleGoToLogin}>로그인 바로가기</button>
           </div>
         </div>
         <div className="SimpleInfoImg">

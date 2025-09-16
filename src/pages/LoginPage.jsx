@@ -1,11 +1,17 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom"; // React Router 사용
 import { useAuth } from "../App";
-import Dum004 from "../util/Dum004.json";
 
 import "./LoginPage.css";
 
-function LoginPage() {
-  const { login, navigateToHome } = useAuth();
+function LoginPage({ 
+  userCredentials, 
+  validateCredentials, 
+  getUserByCredentials 
+}) {
+  const { login } = useAuth();
+  const navigate = useNavigate(); // React Router의 useNavigate 사용
+  
   const [formData, setFormData] = useState({
     id: "",
     pw: "",
@@ -30,17 +36,17 @@ function LoginPage() {
     setIsLoading(true);
     setError("");
 
-    // Dum004 데이터와 매칭 확인
-    const user = Dum004.find(
-      (u) => u.id === formData.id && u.pw === formData.pw
-    );
-
-    if (user) {
+    // props로 받은 validateCredentials 함수 사용
+    if (validateCredentials && validateCredentials(formData.id, formData.pw)) {
       // 로그인 성공
-      login({
-        id: user.id,
-        username: user.id, // username으로 id 사용
-      });
+      const user = getUserByCredentials && getUserByCredentials(formData.id, formData.pw);
+      if (user) {
+        login({
+          id: user.id,
+          username: user.id, // username으로 id 사용
+        });
+        navigate('/dashboard'); // 로그인 성공 시 대시보드로 이동
+      }
     } else {
       // 로그인 실패
       setError("아이디 또는 비밀번호가 올바르지 않습니다.");
@@ -49,34 +55,22 @@ function LoginPage() {
     setIsLoading(false);
   };
 
-  // 데모 로그인 (Dum004의 첫 번째 계정으로 자동 로그인)
-  const handleDemoLogin = () => {
-    if (Dum004.length > 0) {
-      const demoUser = Dum004[0];
+  // 특정 사용자로 데모 로그인
+  const handleDemoLogin = (userIndex) => {
+    if (userCredentials && userCredentials.length > userIndex) {
+      const demoUser = userCredentials[userIndex];
       login({
         id: demoUser.id,
         username: demoUser.id,
       });
+      navigate('/dashboard'); // 데모 로그인 성공 시 대시보드로 이동
     }
   };
-  const handleDemoLogin1 = () => {
-    if (Dum004.length > 0) {
-      const demoUser = Dum004[1];
-      login({
-        id: demoUser.id,
-        username: demoUser.id,
-      });
-    }
-  };
-  const handleDemoLogin2 = () => {
-    if (Dum004.length > 0) {
-      const demoUser = Dum004[2];
-      login({
-        id: demoUser.id,
-        username: demoUser.id,
-      });
-    }
-  };
+
+  // 각 소셜 로그인 버튼들
+  const handleNaverLogin = () => handleDemoLogin(0);
+  const handleGoogleLogin = () => handleDemoLogin(1);
+  const handleKakaoLogin = () => handleDemoLogin(2);
 
   return (
     <div className="login-page">
@@ -111,27 +105,44 @@ function LoginPage() {
           </div>
 
           {error && <div className="error-message">{error}</div>}
+          
           <div className="TMmenuLoginBtnBox">
             <button type="submit" className="login-button" disabled={isLoading}>
               {isLoading ? "로그인 중..." : "로그인"}
             </button>
-            <button className="SignUpBtn">회원가입</button>
+            <button type="button" className="SignUpBtn">
+              회원가입
+            </button>
           </div>
         </form>
+
         <div className="autoLoginBox">
           <p className="autoLogin-text">자동 로그인</p>
-          <button className="dumy001Btn" onClick={handleDemoLogin}>
-            Naver 로그인
-          </button>
-          <button className="dumy001Btn" onClick={handleDemoLogin1}>
-            Google 로그인
-          </button>
-          <button className="dumy001Btn" onClick={handleDemoLogin2}>
-            Kakao 로그인
-          </button>
+          {userCredentials && userCredentials.map((user, index) => {
+            // 사용자별 버튼 스타일 매핑
+            const buttonConfig = {
+              0: { text: "Naver 로그인", handler: handleNaverLogin },
+              1: { text: "Google 로그인", handler: handleGoogleLogin },
+              2: { text: "Kakao 로그인", handler: handleKakaoLogin }
+            };
+            
+            const config = buttonConfig[index];
+            if (!config) return null;
+            
+            return (
+              <button 
+                key={`demo-login-${user.id}-${index}`}
+                className="dumy001Btn" 
+                onClick={config.handler}
+              >
+                {config.text}
+              </button>
+            );
+          })}
         </div>
+
         <div className="login-footer">
-          <button className="back-button" onClick={navigateToHome}>
+          <button className="back-button" onClick={() => navigate('/')}>
             홈으로 돌아가기
           </button>
         </div>
