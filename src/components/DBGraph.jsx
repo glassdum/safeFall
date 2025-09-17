@@ -1,4 +1,4 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 import WindowSize from "../hooks/windowSize";
 import DBdata from "../hooks/DBdata"; // DBdata 함수 import
@@ -6,12 +6,12 @@ import DBdata from "../hooks/DBdata"; // DBdata 함수 import
 import "./DBGraph.css"
 
 const DBGraph = ({ incidentVideos }) => {
-  const { width, height } = WindowSize();
+  const { width } = WindowSize();
   
   // DBdata 함수에 props로 받은 데이터 전달
   const { chartData, tableData, rawData } = DBdata(incidentVideos);
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
       return (
@@ -37,6 +37,9 @@ const DBGraph = ({ incidentVideos }) => {
     );
   }
 
+  // X축 설정: 0~11 (Jan=0) + tick 포맷을 MM로 표시
+  const xTicks = Array.from({ length: 12 }, (_, i) => i);
+
   return (
     <div className="video-count-chart">
       {/* 차트 */}
@@ -44,19 +47,19 @@ const DBGraph = ({ incidentVideos }) => {
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
+            <XAxis
               type="number"
-              domain={[1, 12]}
+              domain={[0, 11]}
               dataKey="xPosition"
-              ticks={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]}
-              tickFormatter={(value) => `${String(Math.round(value)).padStart(2, '0')}`}
+              ticks={xTicks}
+              tickFormatter={(value) => `${String(value + 1).padStart(2, '0')}`}
             />
             <YAxis />
             <Tooltip content={<CustomTooltip />} />
-            <Line 
-              type="monotone" 
-              dataKey="total" 
-              stroke="#3b82f6" 
+            <Line
+              type="monotone"
+              dataKey="total"
+              stroke="#3b82f6"
               strokeWidth={2}
               name="전체 영상"
               dot={{ fill: "#3b82f6", strokeWidth: 2, r: 4 }}

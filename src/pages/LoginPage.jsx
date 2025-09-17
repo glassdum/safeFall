@@ -36,14 +36,14 @@ function LoginPage({
     setIsLoading(true);
     setError("");
 
-    // props로 받은 validateCredentials 함수 사용
+    // props로 받은 validateCredentials 함수 사용 (username/password 형태로 전달)
     if (validateCredentials && validateCredentials(formData.id, formData.pw)) {
       // 로그인 성공
       const user = getUserByCredentials && getUserByCredentials(formData.id, formData.pw);
       if (user) {
         login({
-          id: user.id,
-          username: user.id, // username으로 id 사용
+          id: user.username || user.id,
+          username: user.username || user.id, // username으로 id 사용
         });
         navigate('/dashboard'); // 로그인 성공 시 대시보드로 이동
       }
@@ -139,6 +139,16 @@ function LoginPage({
               </button>
             );
           })}
+          
+          {/* 추가 더미 계정이 있는 경우를 위한 일반 버튼 */}
+          {userCredentials && userCredentials.length > 3 && (
+            <button 
+              className="dumy001Btn" 
+              onClick={() => handleDemoLogin(3)}
+            >
+              더미 계정 로그인
+            </button>
+          )}
         </div>
 
         <div className="login-footer">
