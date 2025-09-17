@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { MOCK_DATA } from '../config/api.js';
+import { MOCK_DATA, debugLog } from '../config/api.js';
 import apiService from '../services/api.js';
 
 // 더미데이터 imports (백엔드 실패 시 폴백용)
@@ -31,10 +31,13 @@ export const DataProvider = ({ children }) => {
   const [LiveVideoComponent] = useState(() => Dum001);
   const [liveVideoConfig, setLiveVideoConfig] = useState({
     isVisible: true,
-    streamStatus: "online",
+    streamStatus: "offline",
+    streamUrl: null,
     lastUpdated: new Date().toISOString(),
     title: "Live Security Camera Feed",
-    streamUrl: null
+    quality: "unknown",
+    type: "unknown",
+    error: null
   });
 
   // 2. 사고 영상 데이터 (API 또는 더미데이터)
@@ -69,41 +72,85 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   /**
-   * 초기 데이터 로딩
+   * 초기 데이터 로딩 (스트림 정보 포함)
    */
   const initializeData = async () => {
     if (MOCK_DATA) {
       // 더미데이터 모드
+      debugLog('Initializing with mock data');
       setIncidentVideos(Dum003Data);
       setDashboardStats(calculateStatsFromData(Dum003Data));
+      
+      // Mock 스트림 설정
+      setLiveVideoConfig({
+        isVisible: true,
+        streamStatus: "online",
+        streamUrl: "http://192.168.0.6:5000",
+        lastUpdated: new Date().toISOString(),
+        title: "Live Security Camera Feed (Mock)",
+        quality: "720p",
+        type: "mock",
+        error: null
+      });
+      
       return;
     }
 
     // API 모드
     setLoading(true);
     setError(null);
+    debugLog('Initializing with API data');
 
     try {
-      // 병렬로 데이터 로딩
-      const [videosResponse, statsResponse] = await Promise.allSettled([
+      // 병렬로 데이터 로딩 (스트림 정보 포함)
+      const [videosResponse, statsResponse, streamResponse] = await Promise.allSettled([
         fetchIncidentVideos(),
-        fetchDashboardStats()
+        fetchDashboardStats(),
+        fetchLiveStreamInfo()  // ✅ 스트림 정보도 초기 로딩에 포함
       ]);
 
       if (videosResponse.status === 'fulfilled') {
         setIncidentVideos(videosResponse.value.data || []);
+        debugLog('Videos loaded successfully:', videosResponse.value.data?.length || 0);
+      } else {
+        console.warn('Failed to load videos:', videosResponse.reason?.message);
       }
 
       if (statsResponse.status === 'fulfilled') {
         setDashboardStats(statsResponse.value);
+        debugLog('Dashboard stats loaded successfully');
+      } else {
+        console.warn('Failed to load stats:', statsResponse.reason?.message);
+      }
+
+      if (streamResponse.status === 'fulfilled') {
+        debugLog('Stream info loaded successfully during initialization');
+      } else {
+        console.warn('Failed to load stream info during initialization:', 
+                     streamResponse.reason?.message);
+        
+        // 스트림 정보 로딩 실패 시 오프라인으로 설정
+        setLiveVideoConfig(prev => ({
+          ...prev,
+          streamStatus: "offline",
+          error: "Failed to load stream info"
+        }));
       }
 
     } catch (err) {
       console.error('Failed to initialize data:', err);
       setError(err.message);
+      
       // 에러 시 더미데이터로 폴백
       setIncidentVideos(Dum003Data);
       setDashboardStats(calculateStatsFromData(Dum003Data));
+      
+      // 스트림도 에러 상태로 설정
+      setLiveVideoConfig(prev => ({
+        ...prev,
+        streamStatus: "error",
+        error: err.message
+      }));
     } finally {
       setLoading(false);
     }
@@ -146,20 +193,68 @@ export const DataProvider = ({ children }) => {
   };
 
   /**
-   * 실시간 스트림 정보 조회
+   * 실시간 스트림 정보 조회 (올바른 엔드포인트 사용)
    */
   const fetchLiveStreamInfo = async () => {
-    try {
-      const response = await apiService.getLiveStream();
+    if (MOCK_DATA) {
+      // Mock 모드에서는 가상 스트림 정보 반환
+      const mockStreamInfo = {
+        streamUrl: "http://192.168.0.6:5000",
+        status: "online",
+        type: "mock",
+        quality: "720p"
+      };
+      
       setLiveVideoConfig(prev => ({
         ...prev,
-        streamUrl: response.streamUrl,
-        streamStatus: response.status,
-        lastUpdated: new Date().toISOString()
+        streamUrl: mockStreamInfo.streamUrl,
+        streamStatus: mockStreamInfo.status,
+        quality: mockStreamInfo.quality,
+        type: mockStreamInfo.type,
+        lastUpdated: new Date().toISOString(),
+        error: null
       }));
+      
+      return mockStreamInfo;
+    }
+
+    try {
+      debugLog('Fetching live stream info from correct endpoint');
+      
+      // ✅ 올바른 엔드포인트 사용: /stream/live
+      const response = await apiService.getLiveStream();
+      
+      // 응답 데이터 검증
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid stream info response format');
+      }
+
+      // liveVideoConfig 상태 업데이트
+      setLiveVideoConfig(prev => ({
+        ...prev,
+        streamUrl: response.streamUrl || null,
+        streamStatus: response.status || "offline",
+        quality: response.quality || "unknown",
+        type: response.type || "unknown",
+        lastUpdated: new Date().toISOString(),
+        error: null
+      }));
+
+      debugLog('Live stream info updated:', response);
       return response;
+
     } catch (error) {
       console.error('Failed to fetch live stream info:', error);
+      
+      // 에러 시 오프라인 상태로 설정
+      setLiveVideoConfig(prev => ({
+        ...prev,
+        streamStatus: "offline",
+        streamUrl: null,
+        lastUpdated: new Date().toISOString(),
+        error: error.message
+      }));
+      
       throw error;
     }
   };
@@ -169,28 +264,45 @@ export const DataProvider = ({ children }) => {
    */
 
   /**
-   * 영상 확인 상태 업데이트
+   * 영상 확인 상태 업데이트 (ID 기반으로 개선)
    */
-  const updateVideoCheckStatus = async (filename, isChecked) => {
+  const updateVideoCheckStatus = async (identifier, isChecked) => {
     if (MOCK_DATA) {
       // 더미데이터 모드: 로컬 상태만 업데이트
       setIncidentVideos(prev => 
-        prev.map(video => 
-          video.filename === filename 
-            ? { ...video, isChecked } 
-            : video
-        )
+        prev.map(video => {
+          // ID 또는 filename으로 찾기
+          const matchById = video.id && video.id.toString() === identifier.toString();
+          const matchByFilename = video.filename === identifier;
+          
+          if (matchById || matchByFilename) {
+            return { ...video, isChecked };
+          }
+          return video;
+        })
       );
       return;
     }
 
     // API 모드: 백엔드 업데이트 후 로컬 상태 업데이트
     try {
-      await apiService.updateVideoStatus(filename, isChecked);
+      // identifier가 숫자이면 ID로, 문자열이면 filename으로 처리
+      let videoId = identifier;
+      
+      // filename이 전달된 경우 해당 video의 ID 찾기
+      if (isNaN(identifier)) {
+        const video = incidentVideos.find(v => v.filename === identifier);
+        if (!video) {
+          throw new Error(`Video not found with filename: ${identifier}`);
+        }
+        videoId = video.id;
+      }
+
+      await apiService.updateVideoStatus(videoId, isChecked);
       
       setIncidentVideos(prev => 
         prev.map(video => 
-          video.filename === filename 
+          video.id === videoId 
             ? { ...video, isChecked } 
             : video
         )
@@ -228,22 +340,37 @@ export const DataProvider = ({ children }) => {
   };
 
   /**
-   * 영상 삭제
+   * 영상 삭제 (ID 기반으로 개선)
    */
-  const deleteIncidentVideo = async (filename) => {
+  const deleteIncidentVideo = async (identifier) => {
     if (MOCK_DATA) {
       // 더미데이터 모드
       setIncidentVideos(prev => 
-        prev.filter(video => video.filename !== filename)
+        prev.filter(video => {
+          const matchById = video.id && video.id.toString() === identifier.toString();
+          const matchByFilename = video.filename === identifier;
+          return !(matchById || matchByFilename);
+        })
       );
       return;
     }
 
     // API 모드
     try {
-      await apiService.deleteVideo(filename);
+      let videoId = identifier;
+      
+      // filename이 전달된 경우 해당 video의 ID 찾기
+      if (isNaN(identifier)) {
+        const video = incidentVideos.find(v => v.filename === identifier);
+        if (!video) {
+          throw new Error(`Video not found with filename: ${identifier}`);
+        }
+        videoId = video.id;
+      }
+
+      await apiService.deleteVideo(videoId);
       setIncidentVideos(prev => 
-        prev.filter(video => video.filename !== filename)
+        prev.filter(video => video.id !== videoId)
       );
       await refreshDashboardStats();
     } catch (error) {
@@ -303,10 +430,17 @@ export const DataProvider = ({ children }) => {
   };
 
   /**
-   * === 실시간 영상 관련 함수들 ===
+   * === 실시간 영상 관련 함수들 (개선된 버전) ===
    */
 
   const updateLiveVideoConfig = (newConfig) => {
+    if (!newConfig || typeof newConfig !== 'object') {
+      console.warn('Invalid config provided to updateLiveVideoConfig');
+      return;
+    }
+
+    debugLog('Updating live video config:', newConfig);
+    
     setLiveVideoConfig(prev => ({
       ...prev,
       ...newConfig,
@@ -314,28 +448,129 @@ export const DataProvider = ({ children }) => {
     }));
   };
 
+  /**
+   * 스트림 상태 업데이트 (백엔드와 연동)
+   */
   const updateStreamStatus = async (status) => {
+    debugLog('Updating stream status:', status);
+    
+    // 로컬 상태 즉시 업데이트 (UI 반응성)
     setLiveVideoConfig(prev => ({
       ...prev,
       streamStatus: status,
       lastUpdated: new Date().toISOString()
     }));
 
-    if (!MOCK_DATA) {
-      try {
-        if (status === "online") {
-          await apiService.startStream();
-        } else {
-          await apiService.stopStream();
-        }
-      } catch (error) {
-        console.error('Failed to update stream status:', error);
+    if (MOCK_DATA) {
+      debugLog('Mock mode: Stream status updated locally only');
+      return;
+    }
+
+    try {
+      // 백엔드 API 호출
+      if (status === "online" || status === "starting") {
+        await apiService.startStream();
+        debugLog('Stream started successfully');
+      } else if (status === "offline" || status === "stopping") {
+        await apiService.stopStream();
+        debugLog('Stream stopped successfully');
       }
+
+      // 성공 시 최신 스트림 정보 다시 가져오기
+      await fetchLiveStreamInfo();
+
+    } catch (error) {
+      console.error('Failed to update stream status:', error);
+      
+      // 실패 시 이전 상태로 롤백하고 에러 표시
+      setLiveVideoConfig(prev => ({
+        ...prev,
+        streamStatus: "error",
+        error: error.message,
+        lastUpdated: new Date().toISOString()
+      }));
+      
+      throw error;
+    }
+  };
+
+  /**
+   * 스트림 연결 테스트 (유틸리티 함수)
+   */
+  const testStreamConnection = async () => {
+    if (MOCK_DATA) {
+      return { 
+        success: true, 
+        url: "http://192.168.0.6:5000/video_feed",
+        type: "mock" 
+      };
+    }
+
+    try {
+      // 1. 스트림 정보 가져오기
+      const streamInfo = await fetchLiveStreamInfo();
+      
+      if (!streamInfo.streamUrl) {
+        return { 
+          success: false, 
+          error: "No stream URL available" 
+        };
+      }
+
+      // 2. 실제 스트림 URL 테스트
+      const workingUrl = await apiService.findWorkingStreamUrl(streamInfo.streamUrl);
+      
+      if (workingUrl && workingUrl.accessible) {
+        debugLog('Stream connection test successful:', workingUrl.url);
+        return {
+          success: true,
+          url: workingUrl.url,
+          baseUrl: streamInfo.streamUrl,
+          type: "live"
+        };
+      } else {
+        debugLog('Stream connection test failed');
+        return {
+          success: false,
+          baseUrl: streamInfo.streamUrl,
+          error: "Stream URL not accessible"
+        };
+      }
+
+    } catch (error) {
+      console.error('Stream connection test error:', error);
+      return {
+        success: false,
+        error: error.message
+      };
     }
   };
 
   const getLiveVideoComponent = () => {
+    if (!LiveVideoComponent) {
+      console.warn('LiveVideoComponent is not available');
+      return null;
+    }
+    
     return LiveVideoComponent;
+  };
+
+  /**
+   * 스트림 관련 상태 초기화
+   */
+  const resetStreamState = () => {
+    debugLog('Resetting stream state');
+    
+    setLiveVideoConfig({
+      isVisible: true,
+      streamStatus: "offline",
+      streamUrl: null,
+      lastUpdated: new Date().toISOString(),
+      title: "Live Security Camera Feed",
+      quality: "unknown",
+      type: "unknown",
+      error: null
+    });
   };
 
   /**
@@ -483,16 +718,18 @@ export const DataProvider = ({ children }) => {
     videoFilters,
     dashboardStats,
     
-    // === 실시간 영상 함수들 ===
+    // === 실시간 영상 함수들 (개선된 버전) ===
     getLiveVideoComponent,
     updateLiveVideoConfig,
     updateStreamStatus,
-    fetchLiveStreamInfo,
+    fetchLiveStreamInfo,      // ✅ 올바른 엔드포인트 사용
+    testStreamConnection,     // ✅ 새로 추가
+    resetStreamState,         // ✅ 새로 추가
     
     // === 사고 영상 함수들 ===
-    updateVideoCheckStatus,
+    updateVideoCheckStatus,   // ✅ ID 기반으로 개선
     addNewIncidentVideo,
-    deleteIncidentVideo,
+    deleteIncidentVideo,      // ✅ ID 기반으로 개선
     getFilteredVideos,
     fetchIncidentVideos,
     refreshIncidentVideos,
