@@ -307,6 +307,115 @@ class ApiService {
 
   /**
    * ===================
+   * 알람/알림 관련 API (새로 추가)
+   * ===================
+   */
+
+  async getLatestNotifications() {
+    try {
+      const url = buildApiUrl('/notifications/latest');
+      debugLog('Fetching latest notifications:', url);
+      
+      const response = await httpClient.get(url, {
+        headers: {
+          'Authorization': 'Bearer test-token'
+        },
+        timeoutMs: 5000,  // 5초 타임아웃
+        cache: false      // 실시간 데이터이므로 캐시 비활성화
+      });
+      
+      debugLog('Latest notifications received:', response);
+      return response;
+    } catch (error) {
+      debugLog('Failed to fetch latest notifications:', error.message);
+      // 백엔드가 준비되지 않은 경우 빈 응답 반환
+      return { count: 0, notifications: [] };
+    }
+  }
+
+  async markNotificationAsRead(notificationId) {
+    try {
+      const url = buildApiUrl(`/notifications/${notificationId}/read`);
+      debugLog('Marking notification as read:', { notificationId });
+      
+      const response = await httpClient.patch(url, {
+        isRead: true
+      });
+      
+      debugLog('Notification marked as read');
+      return response;
+    } catch (error) {
+      debugLog('Failed to mark notification as read:', error.message);
+      throw error;
+    }
+  }
+
+  async getNotificationHistory(params = {}) {
+    try {
+      const queryParams = {
+        page: params.page || PAGINATION_CONFIG.DEFAULT_PAGE,
+        limit: params.limit || PAGINATION_CONFIG.DEFAULT_PAGE_SIZE,
+        sortBy: params.sortBy || 'createdAt',
+        sortOrder: params.sortOrder || 'desc'
+      };
+
+      if (params.type) queryParams.type = params.type;
+      if (params.isRead !== undefined) queryParams.isRead = params.isRead;
+      if (params.severity) queryParams.severity = params.severity;
+
+      const queryString = buildQueryString(queryParams);
+      const url = buildApiUrl('/notifications') + queryString;
+
+      debugLog('Fetching notification history:', queryParams);
+
+      const response = await httpClient.get(url, {
+        cache: true,
+        cacheTime: CACHE_CONFIG.DEFAULT_CACHE_TIME
+      });
+
+      debugLog('Notification history fetched:', { count: response.data?.length || 0 });
+      return response;
+
+    } catch (error) {
+      debugLog('Failed to fetch notification history:', error.message);
+      throw error;
+    }
+  }
+
+  async deleteNotification(notificationId) {
+    try {
+      const url = buildApiUrl(`/notifications/${notificationId}`);
+      debugLog('Deleting notification:', { notificationId });
+      
+      const response = await httpClient.delete(url);
+      httpClient.clearCache('notifications');
+      
+      debugLog('Notification deleted');
+      return response;
+    } catch (error) {
+      debugLog('Failed to delete notification:', error.message);
+      throw error;
+    }
+  }
+
+  async clearAllNotifications() {
+    try {
+      const url = buildApiUrl('/notifications/clear');
+      debugLog('Clearing all notifications');
+      
+      const response = await httpClient.post(url);
+      httpClient.clearCache('notifications');
+      
+      debugLog('All notifications cleared');
+      return response;
+    } catch (error) {
+      debugLog('Failed to clear all notifications:', error.message);
+      throw error;
+    }
+  }
+
+  /**
+   * ===================
    * 대시보드 관련 API
    * ===================
    */
@@ -400,6 +509,49 @@ class ApiService {
   clearCacheByPattern(pattern) {
     httpClient.clearCache(pattern);
     debugLog('Cache cleared for pattern:', pattern);
+  }
+
+  /**
+   * ===================
+   * 개발/테스트 전용 메소드
+   * ===================
+   */
+
+  // 개발 환경에서 알람 테스트용
+  async triggerTestNotification(type = 'fall', severity = 'high') {
+    if (process.env.NODE_ENV !== 'development') {
+      console.warn('Test notification is only available in development mode');
+      return null;
+    }
+
+    try {
+      const url = buildApiUrl('/notifications/test');
+      debugLog('Triggering test notification:', { type, severity });
+      
+      const response = await httpClient.post(url, {
+        type,
+        severity,
+        timestamp: new Date().toISOString()
+      });
+      
+      debugLog('Test notification triggered');
+      return response;
+    } catch (error) {
+      debugLog('Failed to trigger test notification:', error.message);
+      // 백엔드가 준비되지 않은 경우 모의 데이터 반환
+      return {
+        success: true,
+        notification: {
+          id: `test_${Date.now()}`,
+          title: type === 'fall' ? '낙상 감지' : '알림',
+          message: type === 'fall' ? '낙상이 감지되었습니다' : '테스트 알림입니다',
+          severity: severity,
+          type: type,
+          createdAt: new Date().toISOString(),
+          device_id: 'camera_01'
+        }
+      };
+    }
   }
 }
 

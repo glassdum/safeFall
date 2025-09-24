@@ -1,5 +1,7 @@
+// LoginPage.jsx 올바른 수정 버전
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // React Router 사용
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../App";
 
 import "./LoginPage.css";
@@ -10,7 +12,7 @@ function LoginPage({
   getUserByCredentials 
 }) {
   const { login } = useAuth();
-  const navigate = useNavigate(); // React Router의 useNavigate 사용
+  const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
     id: "",
@@ -26,51 +28,78 @@ function LoginPage({
       ...prev,
       [name]: value,
     }));
-    // 에러 메시지 초기화
     if (error) setError("");
   };
 
-  // 로그인 폼 제출 핸들러
-  const handleSubmit = (e) => {
+  // ✅ 핵심: async 키워드 추가!
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    // props로 받은 validateCredentials 함수 사용 (username/password 형태로 전달)
-    if (validateCredentials && validateCredentials(formData.id, formData.pw)) {
-      // 로그인 성공
-      const user = getUserByCredentials && getUserByCredentials(formData.id, formData.pw);
-      if (user) {
-        login({
-          id: user.username || user.id,
-          username: user.username || user.id, // username으로 id 사용
-        });
-        navigate('/dashboard'); // 로그인 성공 시 대시보드로 이동
+    try {
+      // props로 받은 validateCredentials 함수 사용
+      if (validateCredentials && validateCredentials(formData.id, formData.pw)) {
+        // ✅ 이제 await 사용 가능!
+        const user = await getUserByCredentials(formData.id, formData.pw);
+        
+        if (user) {
+          // 백엔드에서 받은 사용자 정보 그대로 사용
+          login({
+            id: user.id || user.username || formData.id,
+            username: user.username || user.id || formData.id,
+            name: user.name || user.username || user.id || formData.id
+          });
+          navigate('/dashboard');
+        } else {
+          setError("로그인에 실패했습니다.");
+        }
+      } else {
+        setError("아이디 또는 비밀번호가 올바르지 않습니다.");
       }
-    } else {
-      // 로그인 실패
-      setError("아이디 또는 비밀번호가 올바르지 않습니다.");
-    }
-
-    setIsLoading(false);
-  };
-
-  // 특정 사용자로 데모 로그인
-  const handleDemoLogin = (userIndex) => {
-    if (userCredentials && userCredentials.length > userIndex) {
-      const demoUser = userCredentials[userIndex];
-      login({
-        id: demoUser.id,
-        username: demoUser.id,
-      });
-      navigate('/dashboard'); // 데모 로그인 성공 시 대시보드로 이동
+    } catch (error) {
+      console.error('Login error:', error);
+      setError("로그인 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // 각 소셜 로그인 버튼들
-  const handleNaverLogin = () => handleDemoLogin(0);
-  const handleGoogleLogin = () => handleDemoLogin(1);
-  const handleKakaoLogin = () => handleDemoLogin(2);
+  // 자동 로그인 핸들러 (각 서비스별 고정 정보로 로그인)
+  const handleAutoLogin = async (username, password, serviceName) => {
+    try {
+      setIsLoading(true);
+      setError("");
+      
+      // 해당 계정으로 로그인 시도
+      if (validateCredentials && validateCredentials(username, password)) {
+        const user = await getUserByCredentials(username, password);
+        
+        if (user) {
+          login({
+            id: user.id || user.username || username,
+            username: user.username || user.id || username,
+            name: user.name || user.username || username
+          });
+          navigate('/dashboard');
+        } else {
+          setError(`${serviceName} 로그인에 실패했습니다.`);
+        }
+      } else {
+        setError(`${serviceName} 계정 정보가 올바르지 않습니다.`);
+      }
+    } catch (error) {
+      console.error(`${serviceName} login error:`, error);
+      setError(`${serviceName} 로그인 중 오류가 발생했습니다.`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // 각 서비스별 로그인 핸들러
+  const handleNaverLogin = () => handleAutoLogin("네이버", "12345678!", "Naver");
+  const handleGoogleLogin = () => handleAutoLogin("구글", "12345678!", "Google");
+  const handleKakaoLogin = () => handleAutoLogin("카카오", "12345678!", "Kakao");
 
   return (
     <div className="login-page">
@@ -88,6 +117,7 @@ function LoginPage({
               onChange={handleInputChange}
               placeholder="아이디를 입력하세요"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -101,6 +131,7 @@ function LoginPage({
               onChange={handleInputChange}
               placeholder="비밀번호를 입력하세요"
               required
+              disabled={isLoading}
             />
           </div>
 
@@ -110,7 +141,7 @@ function LoginPage({
             <button type="submit" className="login-button" disabled={isLoading}>
               {isLoading ? "로그인 중..." : "로그인"}
             </button>
-            <button type="button" className="SignUpBtn">
+            <button type="button" className="SignUpBtn" disabled={isLoading}>
               회원가입
             </button>
           </div>
@@ -118,41 +149,38 @@ function LoginPage({
 
         <div className="autoLoginBox">
           <p className="autoLogin-text">자동 로그인</p>
-          {userCredentials && userCredentials.map((user, index) => {
-            // 사용자별 버튼 스타일 매핑
-            const buttonConfig = {
-              0: { text: "Naver 로그인", handler: handleNaverLogin },
-              1: { text: "Google 로그인", handler: handleGoogleLogin },
-              2: { text: "Kakao 로그인", handler: handleKakaoLogin }
-            };
-            
-            const config = buttonConfig[index];
-            if (!config) return null;
-            
-            return (
-              <button 
-                key={`demo-login-${user.id}-${index}`}
-                className="dumy001Btn" 
-                onClick={config.handler}
-              >
-                {config.text}
-              </button>
-            );
-          })}
           
-          {/* 추가 더미 계정이 있는 경우를 위한 일반 버튼 */}
-          {userCredentials && userCredentials.length > 3 && (
-            <button 
-              className="dumy001Btn" 
-              onClick={() => handleDemoLogin(3)}
-            >
-              더미 계정 로그인
-            </button>
-          )}
+          <button 
+            className="dumy001Btn" 
+            onClick={handleNaverLogin}
+            disabled={isLoading}
+          >
+            Naver 로그인
+          </button>
+          
+          <button 
+            className="dumy001Btn" 
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
+          >
+            Google 로그인
+          </button>
+          
+          <button 
+            className="dumy001Btn" 
+            onClick={handleKakaoLogin}
+            disabled={isLoading}
+          >
+            Kakao 로그인
+          </button>
         </div>
 
         <div className="login-footer">
-          <button className="back-button" onClick={() => navigate('/')}>
+          <button 
+            className="back-button" 
+            onClick={() => navigate('/')}
+            disabled={isLoading}
+          >
             홈으로 돌아가기
           </button>
         </div>
